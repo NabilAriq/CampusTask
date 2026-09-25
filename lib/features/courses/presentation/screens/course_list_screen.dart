@@ -13,11 +13,55 @@ import '../../../tasks/presentation/screens/task_list_screen.dart';
 import '../../../tasks/presentation/widgets/priority_badge.dart';
 import '../../../tasks/presentation/widgets/status_chip.dart';
 
-class CourseListScreen extends ConsumerWidget {
+import '../../../tasks/presentation/widgets/calendar_panel_widget.dart';
+import '../../../tasks/presentation/screens/task_form_screen.dart';
+
+class CourseListScreen extends ConsumerStatefulWidget {
   const CourseListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CourseListScreen> createState() => _CourseListScreenState();
+}
+
+class _CourseListScreenState extends ConsumerState<CourseListScreen> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _buildHomeScreen(context),
+          _buildCalendarScreen(context),
+          const TaskListScreen(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.school_outlined),
+            selectedIcon: Icon(Icons.school),
+            label: 'Mata Kuliah',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Kalender',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.assignment_outlined),
+            selectedIcon: Icon(Icons.assignment),
+            label: 'Semua Tugas',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeScreen(BuildContext context) {
     final coursesAsync = ref.watch(coursesProvider);
     final activeTasksAsync = ref.watch(activeTasksProvider);
 
@@ -26,12 +70,14 @@ class CourseListScreen extends ConsumerWidget {
         title: const Text('CampusTask'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Kalender Tugas',
+            onPressed: () => setState(() => _currentIndex = 1),
+          ),
+          IconButton(
             icon: const Icon(Icons.assignment_outlined),
             tooltip: 'Semua Tugas',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TaskListScreen()),
-            ),
+            onPressed: () => setState(() => _currentIndex = 2),
           ),
         ],
       ),
@@ -39,12 +85,6 @@ class CourseListScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (courses) {
-          if (courses.isEmpty) {
-            return _EmptyState(
-              onAdd: () => _openForm(context),
-            );
-          }
-
           final courseMap = {for (final c in courses) c.id: c};
           final activeTasks = activeTasksAsync.asData?.value ?? [];
 
@@ -63,10 +103,20 @@ class CourseListScreen extends ConsumerWidget {
                 ),
               ),
 
+              // ── Calendar Panel Section on Home Page ────────────────────────
+              SliverToBoxAdapter(
+                child: CalendarPanelWidget(
+                  showHeaderTitle: true,
+                  onOpenFullScreen: () => setState(() => _currentIndex = 1),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
               // ── Courses Section Header ─────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Row(
                     children: [
                       const Icon(Icons.school_outlined,
@@ -102,36 +152,89 @@ class CourseListScreen extends ConsumerWidget {
                 ),
               ),
 
-              // ── Course Cards List ──────────────────────────────────────────
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final course = courses[index];
-                      return _CourseCard(
-                        course: course,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TaskListScreen(courseId: course.id),
+              // ── Course Cards List or Empty State ───────────────────────────
+              if (courses.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: _EmptyState(
+                      onAdd: () => _openForm(context),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final course = courses[index];
+                        return _CourseCard(
+                          course: course,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TaskListScreen(courseId: course.id),
+                            ),
                           ),
-                        ),
-                        onEdit: () => _openForm(context, course: course),
-                        onDelete: () => _confirmDelete(context, ref, course),
-                      );
-                    },
-                    childCount: courses.length,
+                          onEdit: () => _openForm(context, course: course),
+                          onDelete: () =>
+                              _confirmDelete(context, ref, course),
+                        );
+                      },
+                      childCount: courses.length,
+                    ),
                   ),
                 ),
-              ),
             ],
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openForm(context),
+        tooltip: 'Tambah Mata Kuliah',
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildCalendarScreen(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Kalender Tugas'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Tambah Tugas',
+            onPressed: () => _openTaskForm(context),
+          ),
+        ],
+      ),
+      body: const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 80),
+          child: CalendarPanelWidget(
+            showHeaderTitle: false,
+            maxTasksPreview: 50,
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openTaskForm(context),
+        tooltip: 'Tambah Tugas',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _openTaskForm(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TaskFormScreen(
+        initialDeadline: DateTime.now(),
       ),
     );
   }

@@ -9,10 +9,16 @@ import '../../../courses/presentation/controllers/course_controller.dart';
 import '../../../notifications/notification_service.dart';
 
 class TaskFormScreen extends ConsumerStatefulWidget {
-  const TaskFormScreen({super.key, this.existing, this.preselectedCourseId});
+  const TaskFormScreen({
+    super.key,
+    this.existing,
+    this.preselectedCourseId,
+    this.initialDeadline,
+  });
 
   final TaskEntity? existing;
   final String? preselectedCourseId;
+  final DateTime? initialDeadline;
 
   @override
   ConsumerState<TaskFormScreen> createState() => _TaskFormScreenState();
@@ -36,7 +42,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
     _descCtrl = TextEditingController(text: e?.description ?? '');
     _priority = e?.priority ?? TaskPriority.medium;
     _status = e?.status ?? TaskStatus.pending;
-    _deadline = e?.deadline;
+    _deadline = e?.deadline ?? widget.initialDeadline;
     _selectedCourseId = e?.courseId ?? widget.preselectedCourseId;
   }
 

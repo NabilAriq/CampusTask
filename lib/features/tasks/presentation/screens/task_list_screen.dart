@@ -9,6 +9,7 @@ import '../../../courses/domain/entities/course_entity.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
 import 'task_detail_screen.dart';
+import 'task_calendar_screen.dart';
 
 class TaskListScreen extends ConsumerStatefulWidget {
   const TaskListScreen({super.key, this.courseId});
@@ -56,6 +57,14 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Kalender Tugas',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TaskCalendarScreen()),
+            ),
+          ),
           // Filter button
           if (widget.courseId == null)
             IconButton(
